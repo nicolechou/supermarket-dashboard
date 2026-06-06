@@ -15,15 +15,27 @@ st.set_page_config(
 # ── 載入帳號設定 ──────────────────────────────────────────────────────────────
 CONFIG_PATH = Path(__file__).parent / "config.yaml"
 
+def _deep_dict(obj):
+    if hasattr(obj, "items"):
+        return {k: _deep_dict(v) for k, v in obj.items()}
+    return obj
+
 def load_config():
-    # 支援 Streamlit Cloud Secrets（部署用）或本地 config.yaml（開發用）
-    if "credentials" in st.secrets:
-        return {
-            "credentials": st.secrets["credentials"].to_dict(),
-            "cookie": st.secrets["cookie"].to_dict(),
-        }
-    with open(CONFIG_PATH, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    # Streamlit Cloud：從 st.secrets 讀取
+    try:
+        if "credentials" in st.secrets:
+            return _deep_dict({
+                "credentials": st.secrets["credentials"],
+                "cookie": st.secrets["cookie"],
+            })
+    except Exception:
+        pass
+    # 本地開發：從 config.yaml 讀取
+    if CONFIG_PATH.exists():
+        with open(CONFIG_PATH, encoding="utf-8") as f:
+            return yaml.safe_load(f)
+    st.error("找不到設定檔。請在 Streamlit Cloud → App Settings → Secrets 貼入帳號設定。")
+    st.stop()
 
 config = load_config()
 
